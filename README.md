@@ -1,6 +1,28 @@
 Souper is a superoptimizer for LLVM IR. It uses an SMT solver to help identify
 missing peephole optimizations in LLVM's midend optimizers.
 
+# About this Fork
+
+This is a fork of Souper maintained for compatibility with **LLVM 19** and **Nix**.
+It includes a `flake.nix` for reproducible builds and development environments.
+
+## Building with Nix
+
+To build the project using Nix:
+
+```bash
+nix build -L .#souper
+```
+
+To enter a development shell with all dependencies (LLVM 19, Z3, Hiredis, CMake, Ninja):
+
+```bash
+nix develop
+```
+
+The resulting binaries will be available in `./result/bin`.
+
+
 The architecture and concepts of Souper are described in [Souper: A synthesizing superoptimizer](https://arxiv.org/pdf/1711.04422.pdf).
 
 # Requirements
