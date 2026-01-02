@@ -11,14 +11,32 @@ endif()
 if (NOT LLVM_BUILD_TYPE)
   set(LLVM_BUILD_TYPE ${CMAKE_BUILD_TYPE})
 endif()
-set(LLVM_CONFIG_EXECUTABLE ${CMAKE_SOURCE_DIR}/third_party/llvm-${LLVM_BUILD_TYPE}-install/bin/llvm-config)
-if(NOT EXISTS ${LLVM_CONFIG_EXECUTABLE})
-  message(FATAL_ERROR "llvm-config could not be found!")
+
+if (DEFINED ENV{LLVM_CONFIG_EXECUTABLE})
+  set(LLVM_CONFIG_EXECUTABLE $ENV{LLVM_CONFIG_EXECUTABLE})
 endif()
 
-find_path(ZSTD_LIBRARY_DIR
-          NAMES libzstd.a libzstd.dylib libzstd.so libzstd.so.1
-          HINTS /usr/local/lib /opt/homebrew/lib /usr/lib/x86_64-linux-gnu)
+if (NOT DEFINED LLVM_CONFIG_EXECUTABLE)
+  set(LLVM_CONFIG_EXECUTABLE ${CMAKE_SOURCE_DIR}/third_party/llvm-${LLVM_BUILD_TYPE}-install/bin/llvm-config)
+endif()
+
+if(NOT EXISTS ${LLVM_CONFIG_EXECUTABLE})
+  # Try to find on path
+  find_program(LLVM_CONFIG_EXECUTABLE_PATH llvm-config)
+  if (LLVM_CONFIG_EXECUTABLE_PATH)
+    set(LLVM_CONFIG_EXECUTABLE ${LLVM_CONFIG_EXECUTABLE_PATH})
+  else()
+    message(FATAL_ERROR "llvm-config could not be found! Set LLVM_CONFIG_EXECUTABLE.")
+  endif()
+endif()
+
+find_library(ZSTD_LIB 
+          NAMES zstd libzstd
+          HINTS /usr/local/lib /opt/homebrew/lib /usr/lib/x86_64-linux-gnu $ENV{ZSTD_LIBRARY_DIR} ${ZSTD_LIBRARY_DIR})
+
+if (ZSTD_LIB)
+  get_filename_component(ZSTD_LIBRARY_DIR ${ZSTD_LIB} DIRECTORY)
+endif()
 
 execute_process(
   COMMAND ${LLVM_CONFIG_EXECUTABLE} --includedir
@@ -69,8 +87,17 @@ execute_process(
   OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 
-set(ALIVE_SRCDIR "${CMAKE_SOURCE_DIR}/third_party/alive2")
-set(ALIVE_BUILDDIR "${CMAKE_SOURCE_DIR}/third_party/alive2-build")
+if (DEFINED ALIVE_DIR)
+  set(ALIVE_SRCDIR "${ALIVE_DIR}/include")
+  set(ALIVE_BUILDDIR "${ALIVE_DIR}/lib")
+  set(ALIVE_SEARCH_PATHS "${ALIVE_DIR}/lib")
+  include_directories(${ALIVE_DIR}/include)
+else()
+  set(ALIVE_SRCDIR "${CMAKE_SOURCE_DIR}/third_party/alive2")
+  set(ALIVE_BUILDDIR "${CMAKE_SOURCE_DIR}/third_party/alive2-build")
+  set(ALIVE_SEARCH_PATHS "${ALIVE_BUILDDIR}")
+endif()
+
 include_directories("${CMAKE_SOURCE_DIR}/third_party")
 include_directories("${ALIVE_SRCDIR}")
 
@@ -86,77 +113,94 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
   set(PASS_LDFLAGS "-Wl,-undefined,dynamic_lookup")
 endif()
 
-include_directories(include third_party/klee/include)
+if (DEFINED KLEE_SRC_DIR)
+  set(KLEE_INCLUDE_DIR "${KLEE_SRC_DIR}/include")
+  # For the KLEE_EXPR_FILES, they are relative to KLEE_SRC_DIR
+else()
+  set(KLEE_SRC_DIR "${CMAKE_SOURCE_DIR}/third_party/klee")
+  set(KLEE_INCLUDE_DIR "include" "third_party/klee/include")
+endif()
+
+include_directories(include ${KLEE_INCLUDE_DIR})
 include_directories(include "${CMAKE_BINARY_DIR}/include")
 
 set(KLEE_EXPR_FILES
-  third_party/klee/lib/Expr/ArrayCache.cpp
-  third_party/klee/lib/Expr/Constraints.cpp
-  third_party/klee/lib/Expr/ExprBuilder.cpp
-  third_party/klee/lib/Expr/Expr.cpp
-  third_party/klee/lib/Expr/ExprEvaluator.cpp
-  third_party/klee/lib/Expr/ExprPPrinter.cpp
-  third_party/klee/lib/Expr/ExprSMTLIBPrinter.cpp
-  third_party/klee/lib/Expr/ExprUtil.cpp
-  third_party/klee/lib/Expr/ExprVisitor.cpp
-  third_party/klee/lib/Expr/Lexer.cpp
-  third_party/klee/lib/Expr/Parser.cpp
-  third_party/klee/lib/Expr/Updates.cpp
+  ${KLEE_SRC_DIR}/lib/Expr/ArrayCache.cpp
+  ${KLEE_SRC_DIR}/lib/Expr/Constraints.cpp
+  ${KLEE_SRC_DIR}/lib/Expr/ExprBuilder.cpp
+  ${KLEE_SRC_DIR}/lib/Expr/Expr.cpp
+  ${KLEE_SRC_DIR}/lib/Expr/ExprEvaluator.cpp
+  ${KLEE_SRC_DIR}/lib/Expr/ExprPPrinter.cpp
+  ${KLEE_SRC_DIR}/lib/Expr/ExprSMTLIBPrinter.cpp
+  ${KLEE_SRC_DIR}/lib/Expr/ExprUtil.cpp
+  ${KLEE_SRC_DIR}/lib/Expr/ExprVisitor.cpp
+  ${KLEE_SRC_DIR}/lib/Expr/Lexer.cpp
+  ${KLEE_SRC_DIR}/lib/Expr/Parser.cpp
+  ${KLEE_SRC_DIR}/lib/Expr/Updates.cpp
 )
 
 add_library(kleeExpr STATIC
   ${KLEE_EXPR_FILES}
 )
 
-find_path(HIREDIS_INCLUDE_DIR
-  NAMES
-  hiredis/hiredis.h
-  PATHS
-  third_party/hiredis-install/include
-  NO_DEFAULT_PATH)
+if (DEFINED HIREDIS_INCLUDE_DIR)
+  include_directories(${HIREDIS_INCLUDE_DIR})
+else()
+  include_directories(${CMAKE_SOURCE_DIR}/third_party/hiredis-install/include/hiredis)
+endif()
 
-include_directories(${HIREDIS_INCLUDE_DIR}/hiredis)
+if (DEFINED HIREDIS_LIBRARIES)
+  set(HIREDIS_LIBRARY ${HIREDIS_LIBRARIES})
+else()
+  find_library(HIREDIS_LIBRARY
+    NAMES
+    hiredis
+    PATHS
+    third_party/hiredis-install/lib
+    NO_DEFAULT_PATH)
+endif()
 
-find_library(HIREDIS_LIBRARY
-  NAMES
-  hiredis
-  PATHS
-  third_party/hiredis-install/lib
-  NO_DEFAULT_PATH)
-
-find_library(ALIVE_IR ir PATHS "${ALIVE_BUILDDIR}" NO_DEFAULT_PATH)
+find_library(ALIVE_IR ir PATHS ${ALIVE_SEARCH_PATHS} NO_DEFAULT_PATH)
 if (ALIVE_IR)
   message(STATUS "Alive2 IR")
 else()
   message(SEND_ERROR "Alive2 libir.a not found")
 endif()
 
-find_library(ALIVE_SMT smt PATHS "${ALIVE_BUILDDIR}" NO_DEFAULT_PATH)
+find_library(ALIVE_SMT smt PATHS ${ALIVE_SEARCH_PATHS} NO_DEFAULT_PATH)
 if (ALIVE_SMT)
   message(STATUS "Alive2 SMT")
 else()
   message(SEND_ERROR "Alive2 libsmt.a not found")
 endif()
 
-find_library(ALIVE_TOOLS tools PATHS "${ALIVE_BUILDDIR}" NO_DEFAULT_PATH)
+find_library(ALIVE_TOOLS tools PATHS ${ALIVE_SEARCH_PATHS} NO_DEFAULT_PATH)
 if (ALIVE_TOOLS)
   message(STATUS "Alive2 TOOLS")
 else()
   message(SEND_ERROR "Alive2 libtools.a not found")
 endif()
 
-find_library(ALIVE_UTIL util PATHS "${ALIVE_BUILDDIR}" NO_DEFAULT_PATH)
+find_library(ALIVE_UTIL util PATHS ${ALIVE_SEARCH_PATHS} NO_DEFAULT_PATH)
 if (ALIVE_UTIL)
   message(STATUS "Alive2 UTIL")
 else()
   message(SEND_ERROR "Alive2 libutil.a not found")
 endif()
 
-set(Z3 "${CMAKE_SOURCE_DIR}/third_party/z3-install/bin/z3")
-set(Z3_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/third_party/z3-install/include")
-include_directories(${Z3_INCLUDE_DIR})
+if (DEFINED Z3_INCLUDE_DIR)
+  include_directories(${Z3_INCLUDE_DIR})
+else()
+  set(Z3_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/third_party/z3-install/include")
+  include_directories(${Z3_INCLUDE_DIR})
+endif()
 
-find_library(Z3_LIBRARY z3 PATHS "${CMAKE_SOURCE_DIR}/third_party/z3-install/lib" NO_DEFAULT_PATH)
+if (DEFINED Z3_LIBRARIES)
+  set(Z3_LIBRARY ${Z3_LIBRARIES})
+else()
+  find_library(Z3_LIBRARY z3 PATHS "${CMAKE_SOURCE_DIR}/third_party/z3-install/lib" NO_DEFAULT_PATH)
+endif()
+
 if (Z3_LIBRARY)
   message(STATUS "Z3 shared lib: ${Z3_LIBRARY}")
 else()
@@ -313,6 +357,7 @@ add_executable(souper2llvm
   tools/souper2llvm.cpp
 )
 
+if (BUILD_TESTING)
 add_executable(extractor_tests
   unittests/Extractor/ExtractorTests.cpp
 )
@@ -340,6 +385,7 @@ add_executable(bulk_tests
   utils/gen-xfer-funcs/BulkTests.cpp
   utils/gen-xfer-funcs/Verification.cpp)
 target_include_directories(bulk_tests PUBLIC "${CMAKE_SOURCE_DIR}/unittests/Interpreter")
+endif()
 
 configure_file(
   ${CMAKE_SOURCE_DIR}/utils/gen-xfer-funcs/run_n.pl.in
@@ -379,10 +425,12 @@ foreach(target souper internal-solver-test lexer-test parser-test souper-check c
   set_target_properties(${target} PROPERTIES COMPILE_FLAGS "${LLVM_CXXFLAGS}")
   target_include_directories(${target} PRIVATE "${LLVM_INCLUDEDIR}")
 endforeach()
+if (BUILD_TESTING)
 foreach(target extractor_tests inst_tests parser_tests interpreter_tests bulk_tests codegen_tests)
   set_target_properties(${target} PROPERTIES COMPILE_FLAGS "${GTEST_CXXFLAGS} ${LLVM_CXXFLAGS}")
   target_include_directories(${target} PRIVATE "${LLVM_INCLUDEDIR}" "${GTEST_INCLUDEDIR}")
 endforeach()
+endif()
 
 # static
 target_link_libraries(kleeExpr ${LLVM_LIBS} ${LLVM_LDFLAGS})
@@ -409,12 +457,14 @@ target_link_libraries(souper-check souperTool souperExtractor souperKVStore soup
 target_link_libraries(souper-interpret souperTool souperExtractor souperKVStore souperSMTLIB2 souperParser ${HIREDIS_LIBRARY} ${ALIVE_LIBRARY} ${Z3_LIBRARY})
 target_link_libraries(count-insts souperParser)
 target_link_libraries(souper2llvm souperParser souperCodegen)
+if (BUILD_TESTING)
 target_link_libraries(extractor_tests souperExtractor souperParser ${GTEST_LIBS} ${ALIVE_LIBRARY})
 target_link_libraries(inst_tests souperInfer souperPass souperInst souperExtractor ${GTEST_LIBS} ${ALIVE_LIBRARY})
 target_link_libraries(parser_tests souperParser ${GTEST_LIBS} ${ALIVE_LIBRARY})
 target_link_libraries(codegen_tests souperCodegen souperInst ${GTEST_LIBS} ${ALIVE_LIBRARY})
 target_link_libraries(interpreter_tests souperInfer souperInst ${GTEST_LIBS} ${ALIVE_LIBRARY})
 target_link_libraries(bulk_tests souperInfer souperInst ${GTEST_LIBS} ${ALIVE_LIBRARY} ${Z3_LIBRARY})
+endif()
 
 set(TEST_SYNTHESIS "ON" CACHE STRING "Enable additional, computationally intensive synthesis tests")
 set(TEST_LONG_DURATION_SYNTHESIS "" CACHE STRING "Enable long duration (> 10 min) synthesis tests")
@@ -434,10 +484,12 @@ configure_file(
   ${CMAKE_BINARY_DIR}/souper-check-gdb.py
 )
 
+if (BUILD_TESTING)
 add_custom_target(check
   COMMAND ${CMAKE_BINARY_DIR}/run_lit
   DEPENDS extractor_tests inst_tests parser-test parser_tests profileRuntime souper souper-check souper-interpret souperPass souper2llvm souperPassProfileAll count-insts interpreter_tests bulk_tests codegen_tests
   USES_TERMINAL)
+endif()
 
 # we want assertions even in release mode!
 string(REPLACE "-DNDEBUG" "" CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")

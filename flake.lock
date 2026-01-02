@@ -1,0 +1,97 @@
+{
+  "nodes": {
+    "alive2-src": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1717019983,
+        "narHash": "sha256-48KEDaPlpJG392s9xw9HjIzK41OSWELJak8aiOypGp4=",
+        "owner": "manasij7479",
+        "repo": "alive2",
+        "rev": "8d9badd81786786b3422e59d142c8f89d1072477",
+        "type": "github"
+      },
+      "original": {
+        "owner": "manasij7479",
+        "ref": "v7",
+        "repo": "alive2",
+        "type": "github"
+      }
+    },
+    "flake-utils": {
+      "inputs": {
+        "systems": "systems"
+      },
+      "locked": {
+        "lastModified": 1731533236,
+        "narHash": "sha256-l0KFg5HjrsfsO/JpG+r7fRrqm12kzFHyUHqHCVpMMbI=",
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "rev": "11707dc2f618dd54ca8739b309ec4fc024de578b",
+        "type": "github"
+      },
+      "original": {
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "type": "github"
+      }
+    },
+    "klee-src": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1698676744,
+        "narHash": "sha256-I/+rrRchEGxOGGrGvJv1+0ryQH356rjy88GL3NyLlho=",
+        "owner": "regehr",
+        "repo": "klee",
+        "rev": "61cc51cd99abe471d0fa8012a25b28d33b5896f5",
+        "type": "github"
+      },
+      "original": {
+        "owner": "regehr",
+        "ref": "klee-for-souper-17-2",
+        "repo": "klee",
+        "type": "github"
+      }
+    },
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1767116409,
+        "narHash": "sha256-5vKw92l1GyTnjoLzEagJy5V5mDFck72LiQWZSOnSicw=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "cad22e7d996aea55ecab064e84834289143e44a0",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "root": {
+      "inputs": {
+        "alive2-src": "alive2-src",
+        "flake-utils": "flake-utils",
+        "klee-src": "klee-src",
+        "nixpkgs": "nixpkgs"
+      }
+    },
+    "systems": {
+      "locked": {
+        "lastModified": 1681028828,
+        "narHash": "sha256-Vy1rq5AaRuLzOxct8nz4T6wlgyUR7zLU309k9mBC768=",
+        "owner": "nix-systems",
+        "repo": "default",
+        "rev": "da67096a3b9bf56a91d16901293e51ba5b49a27e",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nix-systems",
+        "repo": "default",
+        "type": "github"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}

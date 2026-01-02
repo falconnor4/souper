@@ -3,3 +3,6 @@ third_party
 build
 build-*
 *~
+result
+result-*
+.direnv
